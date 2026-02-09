@@ -1,10 +1,28 @@
 # Python-generated files
-__pycache__/
-*.py[oc]
+**/__pycache__/
+*.py[cod]
 build/
 dist/
 wheels/
 *.egg-info
 
 # Virtual environments
-.venv
+.venv/
+venv/
+env/
+
+# Локальные настройки (IDE)
+.idea/
+.vscode/
+
+# Личные заметки и исследования
+Шорткаты.md
+шорткаты-Roadmap.md
+Шорткаты-исследование.md
+
+# Локальные переменные окружения (пароли, ключи)
+.env
+
+# Бэкап БД
+backup_tennis_scoreboard_db.sql
+
