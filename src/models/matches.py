@@ -1,5 +1,7 @@
 import uuid # 1. Импортируем стандартный модуль Python
-from sqlalchemy import ForeignKey, String
+from typing import Any
+
+from sqlalchemy import ForeignKey, String, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from .base_model import Base
 
@@ -24,9 +26,7 @@ class MatchModel(Base):
     # Победитель (может быть пустым, пока матч идет)
     winner_id: Mapped[int | None] = mapped_column("Winner", ForeignKey("Players.ID"), nullable=True)
 
-    # Счет матча (например, "6:4, 7:5")
-    score: Mapped[str | None] = mapped_column("Score", String(50), default="0:0")
-
+    score: Mapped[dict[str, Any]] = mapped_column("Score", JSON, nullable=True)
     def __repr__(self):
         # Безопасно берем срез UUID, если он не None
         short_uuid = self.uuid[:8] if self.uuid else "None"

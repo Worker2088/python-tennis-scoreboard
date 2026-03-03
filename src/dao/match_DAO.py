@@ -3,9 +3,10 @@ from logging import getLogger
 from pathlib import Path
 from typing import List, Optional, Match
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from src.models.matches import MatchModel
+from src.models.players import Player
 
 logger = getLogger(__name__)
 
@@ -13,6 +14,21 @@ class MatchDAO:
     def __init__(self, session: Session):
         # Сессия — это наше "окно" в базу данных
         self.session = session
+
+    def get_match_with_names(self, uuid: str):
+        # 1. Создаем "виртуальные копии" таблицы игроков
+        p1 = aliased(Player)
+        p2 = aliased(Player)
+
+        # 2. Делаем ОДИН запрос, который склеивает Матч и двух Игроков
+        return self.session.query(
+            MatchModel,
+            p1.name.label("p1_name"),
+            p2.name.label("p2_name")
+        ).join(p1, MatchModel.player_one_id == p1.id) \
+            .join(p2, MatchModel.player_two_id == p2.id) \
+            .filter(MatchModel.uuid == uuid) \
+            .first()
 
     def match_create(self, new_match: MatchModel) -> MatchModel:# object_model: Match) -> Match:
         # Создаем "черновик" объекта
@@ -29,11 +45,8 @@ class MatchDAO:
 
     def select_by_uuid(self, uuid: str) -> Optional[MatchModel]:
 
-        # 1. Создаем запрос: "Выбери игрока, чье имя совпадает с переданным"
         query = select(MatchModel).where(MatchModel.uuid == uuid)
 
-        # 2. Выполняем запрос и просим вернуть ОДИН результат или None
-        # .scalar() вытаскивает сам объект Player из обертки результата
         result = self.session.execute(query).scalar_one_or_none()
 
         return result

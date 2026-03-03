@@ -3,6 +3,7 @@ import socketserver
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, unquote
 from src.controllers.match_controller import MatchController
+# from src.controllers.
 
 PORT = 8000
 
@@ -45,7 +46,7 @@ class TennisHandler(http.server.SimpleHTTPRequestHandler):
             controller = MatchController(self)
             uuid = normalized_query.get('uuid')
             print('uuid', uuid)
-            controller.play_match(uuid)
+            controller.render_match(uuid)
 
         # 2. Если запрос начинается на /static/
         elif self.path.startswith("/static/"):
@@ -56,10 +57,22 @@ class TennisHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         """Маршрутизирует POST-запросы."""
+        print("РОУТЕР !!! ПРИШЕЛ POST ЗАПРОС !!!")
+        print('ПОСТ self.path', self.path)
+        parsed_url = urlparse(self.path)
+        print('ПОСТ parsed_url', parsed_url)
+        query = parse_qs(parsed_url.query)
+        print('ПОСТ query', query)
+        normalized_query = {key: value[0] for key, value in query.items()}
+        print('ПОСТ normalized_query', normalized_query)
+
         if self.path == '/start':
             controller = MatchController(self)
             controller.create_match()
 
+        if parsed_url.path == '/match-score':
+            controller = MatchController(self)
+            controller.change_score(normalized_query.get('uuid'))
 
 if __name__ == "__main__":
     # разрешаем повторное использование адреса
