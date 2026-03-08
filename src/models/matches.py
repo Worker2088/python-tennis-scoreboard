@@ -27,6 +27,7 @@ class MatchModel(Base):
     winner_id: Mapped[int | None] = mapped_column("Winner", ForeignKey("Players.ID"), nullable=True)
 
     score: Mapped[dict[str, Any]] = mapped_column("Score", JSON, nullable=True)
+
     def __repr__(self):
         # Безопасно берем срез UUID, если он не None
         short_uuid = self.uuid[:8] if self.uuid else "None"

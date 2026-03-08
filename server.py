@@ -36,17 +36,23 @@ class TennisHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(f.read())
 
         elif parsed_url.path == "/matches":
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
-            self.end_headers()
-            with open(Path("templates/matches.html"), "rb") as f:
-                self.wfile.write(f.read())
+            # self.send_response(200)
+            # self.send_header("Content-type", "text/html")
+            # self.end_headers()
+            # with open(Path("templates/matches.html"), "rb") as f:
+            #     self.wfile.write(f.read())
+            controller = MatchController(self)
+            page = normalized_query.get('page')
+            filter_by_player_name = normalized_query.get('filter_by_player_name')
+            print('page', page)
+            print('filter_by_player_name', filter_by_player_name)
+            controller.render_matches_page(page, filter_by_player_name)
 
         elif parsed_url.path == '/match-score':
             controller = MatchController(self)
             uuid = normalized_query.get('uuid')
             print('uuid', uuid)
-            controller.render_match(uuid)
+            controller.render_match_score(uuid)
 
         # 2. Если запрос начинается на /static/
         elif self.path.startswith("/static/"):

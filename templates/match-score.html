@@ -32,7 +32,12 @@
 </header>
 <main>
     <div class="container">
-        <h1>Current match</h1>
+        <h1>{% if match.winner_id %}
+                Match the end
+            {% else %}
+                Current Match
+            {% endif %}
+        </h1>
         <div class="current-match-image"></div>
         <section class="score">
             <table class="table">
@@ -66,27 +71,31 @@
 <!--                </tbody>-->
                 <tbody>
                     <tr class="player1">
-                        <td class="table-text">{Player1}</td>
-                        <td class="table-text">{Sets1}</td>
-                        <td class="table-text">{Games1}</td>
-                        <td class="table-text">{Points1}</td>
+                        <td class="table-text">{{ match.player_one_name }}</td>
+                        <td class="table-text">{{ match.score.set1 }}</td>
+                        <td class="table-text">{{ match.score.game1 }}</td>
+                        <td class="table-text">{{ match.score.point1 }}</td>
                         <td class="table-text">
-                            <form action="/match-score?uuid={match_uuid}" method="post">
+                            <form action="/match-score?uuid={{ match.uuid }}" method="post">
                                 <input type="hidden" name="Player1" value=1>
-                                <button type="submit" class="score-btn">Score</button>
+                                <button type="submit"
+                                        class="score-btn" {% if match.winner_id %} disabled {% endif %}>Score
+                                </button>
                             </form>
                         </td>
                     </tr>
 
                     <tr class="player2">
-                        <td class="table-text">{Player2}</td>
-                        <td class="table-text">{Sets2}</td>
-                        <td class="table-text">{Games2}</td>
-                        <td class="table-text">{Points2}</td>
+                        <td class="table-text">{{ match.player_two_name }}</td>
+                        <td class="table-text">{{ match.score.set2 }}</td>
+                        <td class="table-text">{{ match.score.game2 }}</td>
+                        <td class="table-text">{{ match.score.point2 }}</td>
                         <td class="table-text">
-                            <form action="/match-score?uuid={match_uuid}" method="post">
+                            <form action="/match-score?uuid={{ match.uuid }}" method="post">
                                 <input type="hidden" name="Player2" value=2>
-                                <button type="submit" class="score-btn">Score</button>
+                                <button type="submit"
+                                        class="score-btn" {% if match.winner_id %} disabled {% endif %}>Score
+                                </button>
                             </form>
                         </td>
                     </tr>

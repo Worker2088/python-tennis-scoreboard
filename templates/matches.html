@@ -46,31 +46,16 @@
                 <th>Player Two</th>
                 <th>Winner</th>
             </tr>
-            <tr>
-                <td>Rafael Nadal</td>
-                <td>Roger Federer</td>
-                <td><span class="winner-name-td">Rafael Nadal</span></td>
-            </tr>
-            <tr>
-                <td>Rafael Nadal</td>
-                <td>Roger Federer</td>
-                <td><span class="winner-name-td">Roger Federer</span></td>
-            </tr>
-            <tr>
-                <td>Rafael Nadal</td>
-                <td>Roger Federer</td>
-                <td><span class="winner-name-td">Rafael Nadal</span></td>
-            </tr>
-            <tr>
-                <td>Rafael Nadal</td>
-                <td>Roger Federer</td>
-                <td><span class="winner-name-td">Roger Federer</span></td>
-            </tr>
-            <tr>
-                <td>Rafael Nadal</td>
-                <td>Roger Federer</td>
-                <td><span class="winner-name-td">Rafael Nadal</span></td>
-            </tr>
+            <tbody>
+                {% for match in matches %}
+                <tr>
+                    <td>{{ match.player_one_name }}</td>
+                    <td>{{ match.player_two_name }}</td>
+                    <td>
+                        <span class="winner-name">{{ match.winner_name }}</span>
+                    </td>
+                {% endfor %}
+            </tbody>
         </table>
 
         <div class="pagination">

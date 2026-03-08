@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Optional, Match
 from sqlalchemy import select
 from sqlalchemy.orm import Session, aliased
+from sqlalchemy import Row
 
 from src.models.matches import MatchModel
 from src.models.players import Player
@@ -15,7 +16,7 @@ class MatchDAO:
         # Сессия — это наше "окно" в базу данных
         self.session = session
 
-    def get_match_with_names(self, uuid: str):
+    def get_match_with_names(self, uuid: str) -> Row | None:
         # 1. Создаем "виртуальные копии" таблицы игроков
         p1 = aliased(Player)
         p2 = aliased(Player)
@@ -29,6 +30,49 @@ class MatchDAO:
             .join(p2, MatchModel.player_two_id == p2.id) \
             .filter(MatchModel.uuid == uuid) \
             .first()
+
+    def get_all_matches(self, filter_by_player_name: str = None) -> list[Row] | None:
+        # 1. Создаем "виртуальные копии" таблицы игроков
+        p1 = aliased(Player)
+        p2 = aliased(Player)
+        win = aliased(Player)
+
+        query = self.session.query(
+            MatchModel,
+            p1.name.label("p1_name"),
+            p2.name.label("p2_name"),
+            win.name.label("winner_name")
+        ).join(p1, MatchModel.player_one_id == p1.id) \
+            .join(p2, MatchModel.player_two_id == p2.id) \
+            .join(win, MatchModel.winner_id == win.id)
+
+        print('Match_DAO query', query)
+        print('Match_DAO query all', query.all())
+        # Реализуем фильтрацию, если имя передано
+        # if filter_by_player_name:
+        #     search = f"%{filter_by_player_name}%"
+        #     query = query.filter(
+        #         or_(
+        #             p1.name.ilike(search),
+        #             p2.name.ilike(search)
+        #         )
+        #     )
+
+        return query.all()  # Возвращает List[Row]
+
+
+        # # 2. Делаем ОДИН запрос, который склеивает Матч и двух Игроков
+        # return self.session.query(
+        #     MatchModel,
+        #     p1.name.label("p1_name"),
+        #     p2.name.label("p2_name"),
+        #     win.name.label("winner")
+        # ).join(p1, MatchModel.player_one_id == p1.id) \
+        #     .join(p2, MatchModel.player_two_id == p2.id) \
+        #     .join(win, MatchModel.winner_id == win.id) \
+        #     .filter(MatchModel.winner_id != None) \
+        #     .all()
+
 
     def match_create(self, new_match: MatchModel) -> MatchModel:# object_model: Match) -> Match:
         # Создаем "черновик" объекта

@@ -30,22 +30,10 @@ class ScoreService:
             current_points_p2="0"
         )
 
-    # def _update_points(self, name):
-    #     pass
-    # def _is_game_won(self, name):
-    #     pass
-    # def _is_set_won(self, name):
-    #     pass
-    # def _is_match_won(self, name):
-    #     pass
-    # def _record_game_win(self, name):
-    #     pass
-    # def _reset_points(self, name):
-    #     pass
 
     def change_score_service(self, match_object: MatchModel, number_win: int) -> None:
-        # надо вызвать сервис который определит старый счет и добавит очко
-        # далее проверит на окончание гейма, если гейм окончен то проверит сет и игру если сет окончен
+        """Входная точка: работает с моделью БД и DTO."""
+
         print('Сервис change_score match_object', match_object)
         print('Сервис change_score name', number_win)
 
@@ -59,16 +47,29 @@ class ScoreService:
 
         print('Сервис change_score score', score)
 
-        if score.is_tiebreak:
-            self._process_tiebreak_point(score, number_win)
-        else:
-            self._process_normal_point(score, number_win)
+        self.update_score(score, number_win)
 
-        # score_json = new_score.model_dump_json()
         # обновляю счет в объекте MatchModel
         match_object.score = score.model_dump()
         print('Сервис change_score match_object', match_object)
 
+        winner_number = self._check_win(score)
+        print('winner_number', winner_number)
+
+        if winner_number:
+            # Переменная создается и сразу используется
+            match_object.winner_id = (
+                match_object.player_one_id if winner_number == 1
+                else match_object.player_two_id)
+
+
+
+    def update_score(self, score: MatchScoreDTO, number_win: int) -> None:
+        """Ядро логики: здесь будет проверка на геймы, сеты и тай-брейки."""
+        if score.is_tiebreak:
+            self._process_tiebreak_point(score, number_win)
+        else:
+            self._process_normal_point(score, number_win)
 
     def _process_normal_point(self, score: MatchScoreDTO, number_win: int) -> None:
         match number_win:
@@ -148,24 +149,6 @@ class ScoreService:
                 pass
         # return score
 
-    # def _finish_tiebreak(self, score: MatchScoreDTO, number_win: int):
-    #     # При победе в тай-брейке сет всегда заканчивается со счетом 7:6
-    #     score.current_points_p1 = '0'
-    #     score.current_points_p2 = '0'
-    #     # current_set = score.sets[score.current_set_index]
-    #     # if number_win == 1:
-    #     #     current_set.player1_games = 7
-    #     #     current_set.player2_games = 6
-    #     # else:
-    #     #     current_set.player1_games = 6
-    #     #     current_set.player2_games = 7
-    #
-    #     score.is_tiebreak = False  # Выключаем режим тай-брейка
-    #     # self._handle_set_end(score, number_win)
-
-    # def _handle_set_end(self, score, number_win):
-    #     pass
-
     def _increment_game(self, score: MatchScoreDTO, number_win: int):
         score.current_points_p1 = '0'
         score.current_points_p2 = '0'
@@ -184,51 +167,36 @@ class ScoreService:
         games = (current_set.player1_games, current_set.player2_games)
 
         match games:
-            # Случай 1: Кто-то набрал 6+, а у второго на 2 меньше
-            case (g1, g2) if g1 >= 6 and (g1 - g2) >= 2:
-                if score.current_set_index ==2:
-                    self._check_win(score, winner=1)
-                else:
-                    # score.sets[score.current_set_index].player1_games = 0
-                    # score.sets[score.current_set_index].player2_games = 0
+            # Случай 1: Кто-то набрал 6+, а у второго на 2 меньше или 7:5
+            case (g1, g2) if (g1 >= 6 and (g1 - g2) >= 2) or g1 == 7:
+                if score.current_set_index < 2:
                     score.current_set_index += 1
-                    self._check_win(score, winner=1)
 
-            case (g1, g2) if g2 >= 6 and (g2 - g1) >= 2:
-                if score.current_set_index ==2:
-                    self._check_win(score, winner=2)
-                else:
-                    # score.sets[score.current_set_index].player1_games = 0
-                    # score.sets[score.current_set_index].player2_games = 0
+            case (g1, g2) if (g2 >= 6 and (g2 - g1) >= 2) or g2 == 7:
+                if score.current_set_index < 2:
                     score.current_set_index += 1
-                    self._check_win(score, winner=2)
 
-            # Случай 2: Счет 7:5 (обработка специфического случая после 6:5)
-            case (7, 5):
-                if score.current_set_index ==2:
-                    self._check_win(score, winner=1)
-                else:
+            # выиграл сет на тайбрейке со счетом 7:6
+            case (g1, g2) if (g1 == 7 and g2 == 6):
+                if score.current_set_index < 2:
                     score.current_set_index += 1
-                    self._check_win(score, winner=1)
-            case (5, 7):
-                if score.current_set_index ==2:
-                    self._check_win(score, winner=2)
-                else:
+
+            case (g1, g2) if (g1 == 6 and g2 == 7):
+                if score.current_set_index < 2:
                     score.current_set_index += 1
-                    self._check_win(score, winner=2)
 
             # Случай 3: Тай-брейк (6:6)
             case (6, 6):
                 score.current_points_p1 = '0'
                 score.current_points_p2 = '0'
-                score.is_tiebreak = True #self._start_tiebreak(score, winner_num)
+                score.is_tiebreak = True
 
             # Во всех остальных случаях сет продолжается
             case _:
                 pass
 
 
-    def _check_win(self, score, winner):
+    def _check_win(self, score) -> int | None:
         score.current_points_p1 = '0'
         score.current_points_p2 = '0'
 
@@ -241,12 +209,21 @@ class ScoreService:
         for s in score.sets:
             # Проверяем, есть ли в сете победитель (логика 6+, 7:5 и т.д.)
             # Используем твою логику: если сет завершен, один из игроков выиграл его
-            if (s.player1_games - s.player2_games >= 2) and (s.player1_games >= 6 or s.player1_games == 7):
+            if (s.player1_games - s.player2_games >= 2) and (s.player1_games >= 6):
                 sets_won_p1 += 1
                 completed_sets_count += 1
                 # print('sets_won_p1', sets_won_p1)
 
-            elif (s.player2_games - s.player1_games >= 2) and (s.player2_games >= 6 or s.player2_games == 7):
+            elif (s.player2_games - s.player1_games >= 2) and (s.player2_games >= 6):
+                sets_won_p2 += 1
+                completed_sets_count += 1
+                # print('sets_won_p2', sets_won_p2)
+            elif s.player1_games == 7 and s.player2_games == 6:
+                sets_won_p1 += 1
+                completed_sets_count += 1
+                # print('sets_won_p1', sets_won_p1)
+
+            elif s.player1_games == 6 and s.player2_games == 7:
                 sets_won_p2 += 1
                 completed_sets_count += 1
                 # print('sets_won_p2', sets_won_p2)
@@ -256,9 +233,14 @@ class ScoreService:
         # 3. Проверка завершения матча (Best of 3)
         if sets_won_p1 == 2:
             print("FINISHED 1")
+            return 1
+        # записать в бд победителя (по uuid)
+        # обнулить поля поинт1-2 и гейм1-2
+        # сделать кнопки не активными
         elif sets_won_p2 == 2:
             print("FINISHED 2")
-
+            return 2
+        return None
 
     def get_match_for_display(self, uuid: str) -> MatchDTO:
         with (SessionLocal() as session):

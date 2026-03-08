@@ -33,6 +33,10 @@ class MatchScoreDTO(BaseModel):
                 p1_wins += 1
             elif (s.player2_games - s.player1_games >= 2) and s.player2_games >= 6:
                 p2_wins += 1
+            elif s.player1_games == 7 and s.player2_games == 6:
+                p1_wins += 1
+            elif s.player1_games == 6 and s.player2_games == 7:
+                p2_wins += 1
         return p1_wins, p2_wins
 
     @computed_field

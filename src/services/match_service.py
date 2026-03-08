@@ -1,10 +1,10 @@
 import logging
-from typing import List
+# from typing import List
 
 from sqlalchemy.dialects.mysql import match
 
 from src.dao.match_DAO import MatchDAO
-from src.dto.match_DTO import MatchCreateDTO, MatchDTO#, MatchScoreDTO, MatchScore
+from src.dto.match_DTO import MatchCreateDTO, MatchDTO, MatchDisplayDTO  # , MatchScoreDTO, MatchScore
 from src.dto.score_DTO import MatchScoreDTO
 from src.services.score_service import ScoreService
 from src.dao.player_DAO import PlayerDAO
@@ -114,6 +114,28 @@ class MatchService:
                     # Превращаем JSON-строку из БД в объект Pydantic
                     score=score_dto
                 )
+    def get_matches_for_display(self, filter_by_player_name: str = None) -> list[MatchDisplayDTO]:
+            with SessionLocal() as session:
+                match_dao = MatchDAO(session)
+
+                # Получаем всё сразу: (список: объект_матча, имя1, имя2, имя победителя)
+                rows = match_dao.get_all_matches(filter_by_player_name)
+                print('rows', rows)
+
+                if not rows:
+                    # raise ValueError("Нет сыгранных матчей!")
+                    return []
+
+                list_MatchDisplayDTO = [
+                    MatchDisplayDTO(
+                        player_one_name=row.p1_name,
+                        player_two_name=row.p2_name,
+                        winner_name=row.winner_name
+                    )
+                    for row in rows
+                ]
+                print('list_MatchDisplayDTO', list_MatchDisplayDTO)
+                return list_MatchDisplayDTO
 
     def change_score_match_service(self, uuid: str, number_win: int) -> None:
         # надо вызвать сервис который определит старый счет и добавит очко

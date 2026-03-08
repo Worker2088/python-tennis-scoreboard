@@ -2,8 +2,9 @@ import json
 import urllib.parse
 from http.server import BaseHTTPRequestHandler
 from logging import getLogger
+from nis import match
 from pathlib import Path
-
+from jinja2 import Template
 
 from pydantic import ValidationError
 
@@ -26,7 +27,7 @@ class MatchController(BaseController):
         super().__init__(handler)
         self.service = MatchService()
 
-    def render_match(self, uuid: str) -> None:
+    def render_match_score(self, uuid: str) -> None:
 
         match_dto = self.service.get_match_for_display(uuid)
         print('match_dto', match_dto)
@@ -34,27 +35,33 @@ class MatchController(BaseController):
         with open(Path("templates/match-score.html"), "r", encoding="utf-8") as f:
             template_html = f.read()
 
-        # метод get_match_score_for_display должен преобразовывать
-        # restored_score = MatchScoreDTO.model_validate_json(match_dto.score)
-        # match_score_dto = match_dto.score
-        # не понимаю как вызвать метод контроллера Скоре
-        # надо в него передать модель срока и получить другую модель
+        # 3. Создаем объект шаблона Jinja2
+        template = Template(template_html)
 
-        # match_score_display_dto = self.service.convert_score_service(match_dto.score)
-        # print('match_score_dto', match_score_dto)
-        final_html = template_html.format(
-            Player1 = match_dto.player_one_name,
-            Player2 = match_dto.player_two_name,
-            Sets1 = match_dto.score.set1,#match_score_display_dto.set1,
-            Sets2 = match_dto.score.set2,#match_score_display_dto.set2,
-            Games1 = match_dto.score.game1,#match_score_display_dto.game1,
-            Games2 = match_dto.score.game2,#match_score_display_dto.game2,
-            Points1 = match_dto.score.point1,#match_score_display_dto.point1,
-            Points2 = match_dto.score.point2,#match_score_display_dto.point2,
-            match_uuid = match_dto.uuid,
-            # AddScore1 = match_dto.player_one_name,
-            # AddScore2 = match_dto.player_two_name,
-        )
+        # 4. Рендерим: передаем весь match_dto целиком!
+        # В HTML теперь можно обращаться к полям через {{ match.player_one_name }}
+        final_html = template.render(match=match_dto)
+
+        self.handler.send_response(200)
+        self.handler.send_header("Content-type", "text/html; charset=utf-8")
+        self.handler.end_headers()
+        self.handler.wfile.write(final_html.encode("utf-8"))
+
+    def render_matches_page(self, page: int = None, filter_by_player_name: str = None) -> None:
+
+        matches_dto = self.service.get_matches_for_display(filter_by_player_name)
+        print('matches_dto', matches_dto)
+
+
+        with open(Path("templates/matches.html"), "r", encoding="utf-8") as f:
+            template_html = f.read()
+
+        # 3. Создаем объект шаблона Jinja2
+        template = Template(template_html)
+
+        # 4. Рендерим: передаем весь match_dto целиком!
+        # В HTML теперь можно обращаться к полям через {{ match.player_one_name }}
+        final_html = template.render(matches=matches_dto)
 
         self.handler.send_response(200)
         self.handler.send_header("Content-type", "text/html; charset=utf-8")
@@ -136,7 +143,7 @@ class MatchController(BaseController):
         # print('change_score match_in_dto', match_in_dto)
 
         # отрисовываем страницу матча с обновленным счетом
-        self.render_match(uuid)
+        self.render_match_score(uuid)
         # надо изменить скор в матче с заданным uuid
         # match_in_dto = MatchCreateDTO.model_validate(normalized_data)
         # print('change_score match_in_dto', match_in_dto)
