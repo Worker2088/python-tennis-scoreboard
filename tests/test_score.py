@@ -1,7 +1,6 @@
 import pytest
-from src.services.score_service import ScoreService  # логика живет здесь
+from src.services.score_service import ScoreService
 from src.dto.score_DTO import MatchScoreDTO, SetScoreDTO
-from  contextlib import nullcontext as does_not_raise
 
 
 @pytest.fixture

@@ -33,14 +33,58 @@
             <h1>Start new match</h1>
             <div class="new-match-image"></div>
             <div class="form-container center">
-                <form method="post" action="/start">
-                    <p style="color: red;">Sample error message</p>
-                    <label class="label-player" for="playerOne">Player one</label>
-                    <input name="player_one_name" class="input-player" placeholder="Name" type="text" required title="Enter a name">
-                    <label class="label-player" for="playerTwo">Player two</label>
-                    <input name="player_two_name" class="input-player" placeholder="Name" type="text" required title="Enter a name">
-                    <input class="form-button" type="submit" value="Start">
-                </form>
+<!--                <form method="post" action="/start">-->
+<!--                    <p style="color: red;">Sample error message</p>-->
+<!--                    <label class="label-player" for="playerOne">Player one</label>-->
+<!--                    <input name="player_one_name"-->
+<!--                           class="input-player"-->
+<!--                           placeholder="Name"-->
+<!--                           type="text"-->
+<!--                           required-->
+<!--                           pattern="[\p{L}\s-]{2,20}"-->
+<!--                           title="Разрешены только буквы, пробелы и дефисы">-->
+<!--                    <label class="label-player" for="playerTwo">Player two</label>-->
+<!--                    <input name="player_two_name"-->
+<!--                           class="input-player"-->
+<!--                           placeholder="Name"-->
+<!--                           type="text"-->
+<!--                           required-->
+<!--                           pattern="[\p{L}\s-]{2,20}"-->
+<!--                           title="Разрешены только буквы, пробелы и дефисы">-->
+<!--                    <input class="form-button" type="submit" value="Start">-->
+<!--                    <button type="button"-->
+<!--                            onclick="console.log(document.querySelector('input').checkValidity())">-->
+<!--                            check-->
+<!--                    </button>-->
+<!--                </form>-->
+                    <form method="post" action="/start" novalidate>
+                        <p style="color: red;">{{ errors.main_error }}</p>
+
+                        <label class="label-player">Player one</label>
+                        <input name="player_one_name"
+                               class="input-player"
+                               placeholder="Name"
+                               type="text"
+                               {# 2. Сохраняем введенное имя, если оно было передано из контроллера #}
+                               value="{{ player_one_name | default('') }}">
+
+                        <div class="error-message" style="color: red; font-size: 0.8em;">
+                            {{ errors.player_one_name | default('') }}
+                        </div>
+
+                        <label class="label-player">Player two</label>
+                        <input name="player_two_name"
+                               class="input-player"
+                               placeholder="Name"
+                               type="text"
+                               value="{{ player_two_name | default('') }}">
+
+                        <div class="error-message" style="color: red; font-size: 0.8em;">
+                            {{ errors.player_two_name | default('') }}
+                        </div>
+
+                        <input class="form-button" type="submit" value="Start">
+                    </form>
             </div>
         </div>
     </div>

@@ -1,14 +1,16 @@
 import logging
+import math
 # from typing import List
 
 from sqlalchemy.dialects.mysql import match
 
 from src.dao.match_DAO import MatchDAO
-from src.dto.match_DTO import MatchCreateDTO, MatchDTO, MatchDisplayDTO  # , MatchScoreDTO, MatchScore
+from src.dto.match_DTO import MatchCreateDTO, MatchDTO, MatchDisplayDTO, PaginatedMatches  # , MatchScoreDTO, MatchScore
 from src.dto.score_DTO import MatchScoreDTO
 from src.services.score_service import ScoreService
 from src.dao.player_DAO import PlayerDAO
 from src.models.matches import MatchModel
+from src.services.exceptions import MatchNotFound
 # from src.services.exceptions import CurrencyAlreadyExists, CurrencyNotFound
 from sqlalchemy.orm import Session, aliased
 from src.database.connection import SessionLocal
@@ -78,16 +80,16 @@ class MatchService:
     #
     #     return score_dto
 
-    def get_match_for_display(self, uuid: str) -> MatchDTO:
+    def get_match_by_uuid(self, uuid: str) -> MatchDTO:
             with SessionLocal() as session:
                 match_dao = MatchDAO(session)
 
                 # Получаем всё сразу: (объект_матча, имя1, имя2)
-                result = match_dao.get_match_with_names(uuid)
+                result = match_dao.get_match_by_uuid(uuid)
                 print('result', result)
 
-                if not result:
-                    raise ValueError("Матч не найден!")
+                # if not result:
+                #     raise MatchNotFound(uuid)
 
                 # Распаковываем результат из кортежа
                 match_obj, p1_name, p2_name = result
@@ -114,28 +116,60 @@ class MatchService:
                     # Превращаем JSON-строку из БД в объект Pydantic
                     score=score_dto
                 )
-    def get_matches_for_display(self, filter_by_player_name: str = None) -> list[MatchDisplayDTO]:
-            with SessionLocal() as session:
-                match_dao = MatchDAO(session)
 
-                # Получаем всё сразу: (список: объект_матча, имя1, имя2, имя победителя)
-                rows = match_dao.get_all_matches(filter_by_player_name)
-                print('rows', rows)
+    def get_matches_for_paginated(self, page: int, filter_by_player_name: str = None) -> PaginatedMatches | None:
+        if page is None:
+            page = 1
+        else:
+            page = int(page)
+        if page < 1:
+            page = 1
 
-                if not rows:
-                    # raise ValueError("Нет сыгранных матчей!")
-                    return []
+        page_size = 2
 
-                list_MatchDisplayDTO = [
-                    MatchDisplayDTO(
-                        player_one_name=row.p1_name,
-                        player_two_name=row.p2_name,
-                        winner_name=row.winner_name
-                    )
-                    for row in rows
-                ]
-                print('list_MatchDisplayDTO', list_MatchDisplayDTO)
-                return list_MatchDisplayDTO
+        with SessionLocal() as session:
+            match_dao = MatchDAO(session)
+
+            # Получаем tuple[list[Row], int] где int это общее количество матчей
+            result = match_dao.get_all_matches(page, page_size, filter_by_player_name)
+            print('result', result)
+            rows, total_count = result
+            print('rows service', rows)
+            print('total_count service', total_count)
+
+            if not rows:
+                # raise ValueError("Нет сыгранных матчей!")
+                return PaginatedMatches(
+                matches='',
+                filter_by_player_name=filter_by_player_name,
+                total_pages=1,  # Минимум 1 страница, даже если матчей 0
+                current_page=1,
+                has_prev=False,
+                has_next=False
+            )
+
+            dtos = [
+                MatchDisplayDTO(
+                    player_one_name=row.p1_name,
+                    player_two_name=row.p2_name,
+                    winner_name=row.winner_name
+                )
+                for row in rows
+            ]
+            print('dtos service', dtos)
+            if total_count == 0:
+                total_pages = 1
+            else:
+                total_pages = math.ceil(total_count / page_size)
+
+            return PaginatedMatches(
+                matches=dtos,
+                filter_by_player_name=filter_by_player_name,
+                total_pages=max(1, total_pages),  # Минимум 1 страница, даже если матчей 0
+                current_page=page,
+                has_prev=page > 1,
+                has_next=page < total_pages
+            )
 
     def change_score_match_service(self, uuid: str, number_win: int) -> None:
         # надо вызвать сервис который определит старый счет и добавит очко

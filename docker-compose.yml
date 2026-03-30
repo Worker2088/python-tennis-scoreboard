@@ -1,0 +1,53 @@
+services:
+  # Слой Model: База данных
+  db:
+    image: mysql:8.4
+    container_name: tennis_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3307:3306"
+# Пробрасываем внутренний 3306 на внешний 3307, чтобы можно было смотреть БД в контейнере через MySQL Workbench
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - tennis_network
+
+  # Слой Controller/Service: Наш Python бэкенд
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: tennis_backend
+    env_file:
+      - .env # обязательное параметр чтобы в сервис попали настройки БД
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: mysql+pymysql://${DB_USER}:${DB_PASSWORD}@db/${DB_NAME}
+    networks:
+      - tennis_network
+
+  # Слой View (раздача): Nginx
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    container_name: tennis_nginx
+    ports:
+      - "8080:80"
+# Пробрасываем 8080 порт сервера на 80 порт контейнера
+# в проде всегда используем 80:80
+    depends_on:
+      - backend
+    networks:
+      - tennis_network
+
+volumes:
+  db_data: # Чтобы данные БД не удалялись при перезагрузке
+
+networks:
+  tennis_network:
+    driver: bridge

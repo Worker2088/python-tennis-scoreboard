@@ -1,7 +1,6 @@
 import sqlite3
 from logging import getLogger
 from pathlib import Path
-from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -26,7 +25,7 @@ class PlayerDAO:
         return new_player
 
 
-    def select_by_name(self, name: str) -> Optional[Player]:
+    def select_by_name(self, name: str) -> Player | None:
         """
         Ищет игрока в базе данных по его имени.
         """
@@ -39,7 +38,7 @@ class PlayerDAO:
 
         return result
 
-    def select_by_id(self, id: int) -> Optional[Player]:
+    def select_by_id(self, id: int) -> Player | None:
         """
         Ищет игрока в базе данных по его имени.
         """

@@ -1,5 +1,6 @@
 import json
 from http.server import BaseHTTPRequestHandler
+from jinja2 import Environment, FileSystemLoader
 
 
 class BaseController:
@@ -14,6 +15,7 @@ class BaseController:
                 через который можно отправлять ответы.
         """
         self.handler = handler
+        self.env = Environment(loader=FileSystemLoader("templates"))
 
     def send_success_response(self, status_code=200, body=None) -> None:
         """

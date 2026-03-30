@@ -17,9 +17,18 @@ db_name = os.getenv("DB_NAME")
 # 3. Экранируем пароль прямо здесь (автоматически!)
 safe_password = urllib.parse.quote_plus(password)
 
-# 4. Собираем URL
-DB_URL = f"mysql+pymysql://{user}:{safe_password}@{host}:{port}/{db_name}"
+# берем URL из Docker
+# но проверим, передал ли он готовую строку целиком
+DB_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DB_URL)
+if not DB_URL:
+    # Если мы запускаем код локально (без Docker), собираем из .env
+    user = os.getenv("DB_USER")
+    # ... сборка через urllib.parse как в твоем коде ...
+    DB_URL = f"mysql+pymysql://{user}:{safe_password}@{host}:{port}/{db_name}"
+
+engine = create_engine(DB_URL, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+

@@ -1,0 +1,29 @@
+# 1. Окружение и зависимости (будут установленны внутри Docker)
+.venv/
+venv/
+ENV/
+pycache/
+*.py[cod]
+*$py.class
+
+# 2. Локальные секреты
+.env
+*.local
+
+# 3. Инструменты разработки и Git
+.git
+.gitignore
+.dockerignore
+.vscode/
+.idea/
+*.swp
+.gemini.md
+
+# 4. Тесты и документация
+tests/
+docs/
+README.md
+pytest.ini
+
+# 5. Специфично для uv
+.uv/

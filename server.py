@@ -1,46 +1,35 @@
 import http.server
 import socketserver
-from pathlib import Path
-from urllib.parse import urlparse, parse_qs, unquote
+import sys
+from urllib.parse import urlparse, parse_qs
 from src.controllers.match_controller import MatchController
-# from src.controllers.
+from src.database.connection import engine
+from src.models.base_model import Base
 
-PORT = 8000
+# так делаем для упрощения деплоя при помощи  Докера
+# принудительно создаем БД вместо uv run alembic upgrade head
+Base.metadata.create_all(bind=engine)
 
+PORT = 8080
 
 class TennisHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         # 1. Если просят главную страницу
-        print('self.path', self.path)
+        # print('self.path', self.path)
         # Разрезаем полный путь на составляющие
-        # Если self.path был "/start?player1=Ivan&player2=Oleg"
-        # То parsed_url.path станет просто "/start"
         parsed_url = urlparse(self.path)
-        print('parsed_url', parsed_url)
         query = parse_qs(parsed_url.query)
-        print('query', query)
         normalized_query = {key: value[0] for key, value in query.items()}
-        print('normalized_query', normalized_query)
 
         if parsed_url.path == "/":
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
-            self.end_headers()
-            with open(Path("templates/index.html"), "rb") as f:
-                self.wfile.write(f.read())
+            controller = MatchController(self)
+            controller.show_main_page()
+
         elif parsed_url.path == "/new-match":
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
-            self.end_headers()
-            with open(Path("templates/new-match.html"), "rb") as f:
-                self.wfile.write(f.read())
+            controller = MatchController(self)
+            controller.show_new_match_page()
 
         elif parsed_url.path == "/matches":
-            # self.send_response(200)
-            # self.send_header("Content-type", "text/html")
-            # self.end_headers()
-            # with open(Path("templates/matches.html"), "rb") as f:
-            #     self.wfile.write(f.read())
             controller = MatchController(self)
             page = normalized_query.get('page')
             filter_by_player_name = normalized_query.get('filter_by_player_name')
@@ -64,13 +53,9 @@ class TennisHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         """Маршрутизирует POST-запросы."""
         print("РОУТЕР !!! ПРИШЕЛ POST ЗАПРОС !!!")
-        print('ПОСТ self.path', self.path)
         parsed_url = urlparse(self.path)
-        print('ПОСТ parsed_url', parsed_url)
         query = parse_qs(parsed_url.query)
-        print('ПОСТ query', query)
         normalized_query = {key: value[0] for key, value in query.items()}
-        print('ПОСТ normalized_query', normalized_query)
 
         if self.path == '/start':
             controller = MatchController(self)
@@ -80,10 +65,31 @@ class TennisHandler(http.server.SimpleHTTPRequestHandler):
             controller = MatchController(self)
             controller.change_score(normalized_query.get('uuid'))
 
-if __name__ == "__main__":
-    # разрешаем повторное использование адреса
+def run_server():
+    # разрешаем повторное использование адреса (при частых перезапусках)
     socketserver.TCPServer.allow_reuse_address = True
-    # uv run server.py
-    with socketserver.TCPServer(("", PORT), TennisHandler) as httpd:
-        print(f"🚀 Сервер на http://localhost:{PORT}")
-        httpd.serve_forever()
+    try:
+        with socketserver.TCPServer(("", PORT), TennisHandler) as httpd:
+            print(f"Сервер на http://localhost:{PORT}")
+            print("Для остановки нажмите Ctrl+C")
+            httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\nОстановка сервера...")
+        # 1. Остановка приема новых HTTP-запросов
+        httpd.shutdown()
+
+        # 2. Закрытие слушающего сокета
+        httpd.server_close()
+        print("Сетевой порт освобожден.")
+
+        # 3. Очистка пула соединений БД (SQLAlchemy)
+        engine.dispose()
+        print("Соединения с базой данных MySQL закрыты.")
+
+        # 4. Финальный аккорд
+        print("Приложение успешно завершило работу.")
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    run_server()
