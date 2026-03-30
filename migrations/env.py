@@ -1,14 +1,17 @@
-from logging.config import fileConfig
-from dotenv import load_dotenv
+# Standard library imports
 import os
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from alembic import context
-from src.models.base_model import Base
-from src.models.players import Player
-from src.models.matches import MatchModel
+from logging.config import fileConfig
 
-from src.database.connection import DB_URL, engine # Импортируем и URL, и сам engine
+# Third party imports
+from alembic import context
+from dotenv import load_dotenv
+from sqlalchemy import engine_from_config, pool
+
+# Local application imports
+from src.database.connection import DB_URL, engine
+from src.models.base_model import Base
+from src.models.matches import MatchModel
+from src.models.players import Player
 
 load_dotenv()
 

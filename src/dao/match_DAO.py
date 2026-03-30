@@ -1,9 +1,12 @@
-from ast import Index
+"""
+Модуль содержит объект доступа к данным (DAO) для матчей.
+
+Обеспечивает взаимодействие с базой данных для получения и создания матчей.
+"""
 from logging import getLogger
-from sqlalchemy import select, or_
+
+from sqlalchemy import Row, or_, select
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import Row
-from src.services.exceptions import MatchNotFound
 
 from src.models.matches import MatchModel
 from src.models.players import Player
@@ -11,56 +14,75 @@ from src.models.players import Player
 logger = getLogger(__name__)
 
 class MatchDAO:
-    def __init__(self, session: Session):
-        # Сессия — это наше "окно" в базу данных
+    """
+    Класс для доступа к данным матчей в базе данных (Data Access Object).
+    """
+    def __init__(self, session: Session) -> None:
+        """
+        Инициализирует DAO сессией базы данных.
+
+        Args:
+            session (Session): Сессия SQLAlchemy.
+        """
         self.session = session
 
     def get_match_by_uuid(self, uuid: str) -> Row | None:
+        """
+        Получает информацию о матче по его UUID, включая имена игроков.
+
+        Args:
+            uuid (str): UUID матча.
+
+        Returns:
+            Row | None: Строка результата с объектом матча и именами игроков или None.
+        """
         # Создаем "виртуальные копии" таблицы игроков
-        p1 = aliased(Player)
-        p2 = aliased(Player)
+        player_one_alias = aliased(Player)
+        player_two_alias = aliased(Player)
 
         match_by_uuid = (
-            select(MatchModel, p1.name.label("p1_name"), p2.name.label("p2_name"))
-            .join(p1, MatchModel.player_one_id == p1.id)
-            .join(p2, MatchModel.player_two_id == p2.id)
+            select(MatchModel, player_one_alias.name.label("p1_name"), player_two_alias.name.label("p2_name"))
+            .join(player_one_alias, MatchModel.player_one_id == player_one_alias.id)
+            .join(player_two_alias, MatchModel.player_two_id == player_two_alias.id)
             .where(MatchModel.uuid == uuid)
         )
 
         result = self.session.execute(match_by_uuid).first()
 
         return result
-        # match_by_uuid = self.session.query(
-        #     MatchModel,
-        #     p1.name.label("p1_name"),
-        #     p2.name.label("p2_name")
-        # ).join(p1, MatchModel.player_one_id == p1.id) \
-        #     .join(p2, MatchModel.player_two_id == p2.id) \
-        #     .filter(MatchModel.uuid == uuid) \
-        #     .first()
 
     def get_all_matches(self, page: int, page_size: int, filter_by_player_name: str = None) -> tuple[list[Row], int]:
+        """
+        Получает список всех завершенных матчей с пагинацией и фильтрацией.
 
+        Args:
+            page (int): Номер текущей страницы.
+            page_size (int): Количество записей на странице.
+            filter_by_player_name (str, optional): Имя игрока для фильтрации.
+
+        Returns:
+            tuple[list[Row], int]: Список строк результата и общее количество подходящих матчей.
+        """
         # 1. Создаем "виртуальные копии" таблицы игроков
-        p1 = aliased(Player)
-        p2 = aliased(Player)
-        win = aliased(Player)
+        player_one_alias = aliased(Player)
+        player_two_alias = aliased(Player)
+        winner_alias = aliased(Player)
 
         query = self.session.query(
             MatchModel,
-            p1.name.label("p1_name"),
-            p2.name.label("p2_name"),
-            win.name.label("winner_name")
-        ).join(p1, MatchModel.player_one_id == p1.id) \
-            .join(p2, MatchModel.player_two_id == p2.id) \
-            .join(win, MatchModel.winner_id == win.id)
+            player_one_alias.name.label("p1_name"),
+            player_two_alias.name.label("p2_name"),
+            winner_alias.name.label("winner_name")
+        ).join(player_one_alias, MatchModel.player_one_id == player_one_alias.id) \
+            .join(player_two_alias, MatchModel.player_two_id == player_two_alias.id) \
+            .join(winner_alias, MatchModel.winner_id == winner_alias.id)
 
         print('Match_DAO query', query)
         print('Match_DAO query all', query.all())
 
         if filter_by_player_name: # and str(filter_by_player_name).strip().lower() != 'none':
             # query = query.filter(or_(p1.name.ilike(filter_by_player_name), p2.name.ilike(filter_by_player_name)))
-            query = query.filter(or_(p1.name.ilike(f"%{filter_by_player_name}%"), p2.name.ilike(f"%{filter_by_player_name}%")))
+            query = query.filter(or_(player_one_alias.name.ilike(f"%{filter_by_player_name}%"), player_two_alias.name.ilike(f"%{filter_by_player_name}%")))
 
         # 1. Считаем общее кол-во для пагинатора
         total_matches = query.count()
@@ -73,7 +95,16 @@ class MatchDAO:
         return query.all(), total_matches  # Возвращает List[Row] и total_matches для расчета количества страниц
 
 
-    def match_create(self, new_match: MatchModel) -> MatchModel:# object_model: Match) -> Match:
+    def create(self, new_match: MatchModel) -> MatchModel:
+        """
+        Создает и сохраняет новый матч в базе данных.
+
+        Args:
+            new_match (MatchModel): Объект модели матча для сохранения.
+
+        Returns:
+            MatchModel: Сохраненный объект матча с заполненным ID.
+        """
         self.session.add(new_match)
         # Сохраняем изменения в реальную базу данных
         self.session.commit()
@@ -82,12 +113,18 @@ class MatchDAO:
         print('new_match_dao_refresh', new_match)
         return new_match
 
-    def select_by_uuid(self, uuid: str) -> MatchModel:
+    def get_by_uuid(self, uuid: str) -> MatchModel | None:
+        """
+        Ищет модель матча в базе данных по его UUID.
+
+        Args:
+            uuid (str): UUID матча.
+
+        Returns:
+            MatchModel | None: Объект модели матча или None.
+        """
         query = select(MatchModel).where(MatchModel.uuid == uuid)
         result = self.session.execute(query).scalar_one_or_none()
-
-        # if not result:
-        #     raise MatchNotFound(uuid)
 
         return result
 

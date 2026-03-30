@@ -1,7 +1,13 @@
+"""
+Главный модуль для запуска HTTP-сервера теннисного табло.
+
+Настраивает обработку GET и POST запросов (маршрутизатор), инициализирует БД и запускает сервер.
+"""
 import http.server
 import socketserver
 import sys
 from urllib.parse import urlparse, parse_qs
+
 from src.controllers.match_controller import MatchController
 from src.database.connection import engine
 from src.models.base_model import Base
@@ -13,7 +19,13 @@ Base.metadata.create_all(bind=engine)
 PORT = 8080
 
 class TennisHandler(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
+    """
+    Обработчик HTTP-запросов для теннисного табло.
+    """
+    def do_GET(self) -> None:
+        """
+        Обрабатывает входящие GET-запросы.
+        """
         # 1. Если просят главную страницу
         # print('self.path', self.path)
         # Разрезаем полный путь на составляющие
@@ -50,8 +62,10 @@ class TennisHandler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_error(404, "Not Found")
 
-    def do_POST(self):
-        """Маршрутизирует POST-запросы."""
+    def do_POST(self) -> None:
+        """
+        Маршрутизирует входящие POST-запросы.
+        """
         print("РОУТЕР !!! ПРИШЕЛ POST ЗАПРОС !!!")
         parsed_url = urlparse(self.path)
         query = parse_qs(parsed_url.query)
@@ -65,7 +79,10 @@ class TennisHandler(http.server.SimpleHTTPRequestHandler):
             controller = MatchController(self)
             controller.change_score(normalized_query.get('uuid'))
 
-def run_server():
+def run_server() -> None:
+    """
+    Запускает HTTP-сервер и настраивает обработку прерываний.
+    """
     # разрешаем повторное использование адреса (при частых перезапусках)
     socketserver.TCPServer.allow_reuse_address = True
     try:

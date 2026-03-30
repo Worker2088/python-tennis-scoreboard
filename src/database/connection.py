@@ -1,5 +1,13 @@
+"""
+Модуль для настройки подключения к базе данных MySQL.
+
+Загружает параметры из переменных окружения и создает движок SQLAlchemy и фабрику сессий.
+"""
+# Standard library imports
 import os
 import urllib.parse
+
+# Third party imports
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

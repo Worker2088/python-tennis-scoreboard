@@ -5,10 +5,12 @@ Revises:
 Create Date: 2026-02-25 12:02:49.808900
 
 """
+# Standard library imports
 from typing import Sequence, Union
 
-from alembic import op
+# Third party imports
 import sqlalchemy as sa
+from alembic import op
 
 
 # revision identifiers, used by Alembic.

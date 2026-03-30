@@ -1,12 +1,29 @@
-import uuid # 1. Импортируем стандартный модуль Python
+"""
+Модуль содержит описание модели Match в базе данных.
+
+Хранит информацию о UUID, игроках, победителе и текущем счете.
+"""
+import uuid
 from typing import Any
 
-from sqlalchemy import ForeignKey, String, JSON
+from sqlalchemy import JSON, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
+
 from .base_model import Base
 
 
 class MatchModel(Base):
+    """
+    Модель теннисного матча в базе данных.
+
+    Attributes:
+        id (int): Уникальный идентификатор матча.
+        uuid (str): Уникальный идентификатор матча в формате UUID.
+        player_one_id (int): ID первого игрока.
+        player_two_id (int): ID второго игрока.
+        winner_id (int | None): ID победителя (если матч завершен).
+        score (dict[str, Any]): Счет матча в формате JSON.
+    """
     __tablename__ = "Matches"
 
     id: Mapped[int] = mapped_column("ID", primary_key=True)
@@ -28,7 +45,13 @@ class MatchModel(Base):
 
     score: Mapped[dict[str, Any]] = mapped_column("Score", JSON, nullable=True)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """
+        Возвращает строковое представление объекта матча.
+
+        Returns:
+            str: Строка с информацией о матче.
+        """
         # Безопасно берем срез UUID, если он не None
         short_uuid = self.uuid[:8] if self.uuid else "None"
 

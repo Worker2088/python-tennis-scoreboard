@@ -1,104 +1,95 @@
+"""
+Модуль содержит сервис для управления бизнес-логикой матчей.
+
+Реализует операции создания матча, получения его данных и пагинации списка.
+"""
 import logging
 import math
-# from typing import List
-
-from sqlalchemy.dialects.mysql import match
 
 from src.dao.match_DAO import MatchDAO
-from src.dto.match_DTO import MatchCreateDTO, MatchDTO, MatchDisplayDTO, PaginatedMatches  # , MatchScoreDTO, MatchScore
-from src.dto.score_DTO import MatchScoreDTO
-from src.services.score_service import ScoreService
 from src.dao.player_DAO import PlayerDAO
-from src.models.matches import MatchModel
-from src.services.exceptions import MatchNotFound
-# from src.services.exceptions import CurrencyAlreadyExists, CurrencyNotFound
-from sqlalchemy.orm import Session, aliased
 from src.database.connection import SessionLocal
+from src.dto.match_DTO import MatchCreateDTO, MatchDTO, MatchDisplayDTO, PaginatedMatches
+from src.dto.score_DTO import MatchScoreDTO
+from src.models.matches import MatchModel
+from src.services.score_service import ScoreService
 
 logger = logging.getLogger(__name__)
 
 
 class MatchService:
     """
-    Сервисный слой для управления матчами
+    Сервисный слой для управления матчами.
     """
     def __init__(self) -> None:
-        """Инициализирует контроллер и его зависимость от CurrencyService."""
+        """Инициализирует сервис и его зависимость от ScoreService."""
         self.service = ScoreService()
 
     def create_match(self, match_dto: MatchCreateDTO) -> MatchDTO:
+        """
+        Создает новый матч, игроков (если они не существуют) и инициализирует счет.
+
+        Args:
+            match_dto (MatchCreateDTO): Данные для создания матча (имена игроков).
+
+        Returns:
+            MatchDTO: Данные созданного матча.
+        """
         with (SessionLocal() as session):
-            # создаю объект счета матча
             initial_score_obj = ScoreService()
-            print('initial_score_obj', initial_score_obj)
             # сохраняю объект в JSON-строку для хранения в БД
-            # score_json = initial_score_obj.match_score.model_dump_json()
-            # ПОМЕНЯЙ !!!!!!!!!!!!!!!
-            # score_json = initial_score_obj.model_dump()
             score_dict = initial_score_obj.match_score.model_dump()
-            print('score_dict', score_dict)
 
             player_dao = PlayerDAO(session)
             match_dao = MatchDAO(session)
 
-            pl1 = player_dao.select_by_name(match_dto.player_one_name)
-            print('pl1', pl1)
-            if not pl1:
-                pl1 = player_dao.add_player(match_dto.player_one_name)
-                print('pl1', pl1)
+            player_one = player_dao.get_by_name(match_dto.player_one_name)
+            if not player_one:
+                player_one = player_dao.create(match_dto.player_one_name)
 
-            pl2 = player_dao.select_by_name(match_dto.player_two_name)
-            print('pl2', pl2)
-            if not pl2:
-                pl2 = player_dao.add_player(match_dto.player_two_name)
-                print('pl2', pl2)
+            player_two = player_dao.get_by_name(match_dto.player_two_name)
+            if not player_two:
+                player_two = player_dao.create(match_dto.player_two_name)
 
             # создаем объект модели матча и передаем его в ДАО
-            new_match_model = MatchModel(player_one_id=pl1.id, player_two_id=pl2.id, score=score_dict)
-            print('new_match_model_service', new_match_model)
+            new_match_model = MatchModel(player_one_id=player_one.id, player_two_id=player_two.id, score=score_dict)
 
-            new_match = match_dao.match_create(new_match_model)  # дао получает и возвращает модель
-            # player_one = player_dao.select_by_id(new_match.player_one_id)
-            # player_two = player_dao.select_by_id(new_match.player_two_id)
-            print('new_match.score из БД', new_match.score)
+            new_match = match_dao.create(new_match_model)  # дао получает и возвращает модель
 
             new_match_dto = MatchDTO(
                 id = new_match.id,
                 uuid = new_match.uuid,
-                player_one_name = pl1.name,
-                player_two_name = pl2.name,
+                player_one_name = player_one.name,
+                player_two_name = player_two.name,
                 winner_id = new_match.winner_id,
                 # score = new_match.score,
                 score = initial_score_obj.match_score,
                 )
-            print('new_match_dto', new_match_dto)
             return new_match_dto
 
-    # def convert_score_service(self, score_match:MatchScoreDTO) -> MatchScoreDisplayDTO:
-    #     score = ScoreService()
-    #     score_dto = score.convert_score_to_display_dto(score_match)
-    #
-    #     return score_dto
-
     def get_match_by_uuid(self, uuid: str) -> MatchDTO:
+            """
+            Получает полную информацию о матче по его UUID.
+
+            Args:
+                uuid (str): UUID матча.
+
+            Returns:
+                MatchDTO: DTO с данными матча и счетом.
+            """
             with SessionLocal() as session:
                 match_dao = MatchDAO(session)
 
                 # Получаем всё сразу: (объект_матча, имя1, имя2)
                 result = match_dao.get_match_by_uuid(uuid)
-                print('result', result)
-
-                # if not result:
-                #     raise MatchNotFound(uuid)
 
                 # Распаковываем результат из кортежа
                 match_obj, p1_name, p2_name = result
-                print('match_obj, p1_name, p2_name', match_obj, p1_name, p2_name)
 
                 # 1. Забираем сырые данные
                 raw_score = match_obj.score
 
-                # 2. Применяем нашу универсальную схему (Адаптер)
+                # 2. Применяем универсальную схему
                 if isinstance(raw_score, str):
                     # Для старых строковых записей
                     score_dto = MatchScoreDTO.model_validate_json(raw_score)
@@ -113,11 +104,20 @@ class MatchService:
                     player_one_name=p1_name,
                     player_two_name=p2_name,
                     winner_id=match_obj.winner_id,
-                    # Превращаем JSON-строку из БД в объект Pydantic
                     score=score_dto
                 )
 
-    def get_matches_for_paginated(self, page: int, filter_by_player_name: str = None) -> PaginatedMatches | None:
+    def get_paginated_matches(self, page: int, filter_by_player_name: str = None) -> PaginatedMatches:
+        """
+        Получает список завершенных матчей с поддержкой пагинации и фильтрации.
+
+        Args:
+            page (int): Номер текущей страницы.
+            filter_by_player_name (str, optional): Имя игрока для фильтрации.
+
+        Returns:
+            PaginatedMatches: Объект с результатами пагинации.
+        """
         if page is None:
             page = 1
         else:
@@ -132,15 +132,11 @@ class MatchService:
 
             # Получаем tuple[list[Row], int] где int это общее количество матчей
             result = match_dao.get_all_matches(page, page_size, filter_by_player_name)
-            print('result', result)
             rows, total_count = result
-            print('rows service', rows)
-            print('total_count service', total_count)
 
             if not rows:
-                # raise ValueError("Нет сыгранных матчей!")
                 return PaginatedMatches(
-                matches='',
+                matches=[],
                 filter_by_player_name=filter_by_player_name,
                 total_pages=1,  # Минимум 1 страница, даже если матчей 0
                 current_page=1,
@@ -156,7 +152,6 @@ class MatchService:
                 )
                 for row in rows
             ]
-            print('dtos service', dtos)
             if total_count == 0:
                 total_pages = 1
             else:
@@ -171,118 +166,25 @@ class MatchService:
                 has_next=page < total_pages
             )
 
-    def change_score_match_service(self, uuid: str, number_win: int) -> None:
+    def update_match_score(self, uuid: str, winning_player: int) -> None:
+        """
+        Обновляет счет матча на основе того, какой игрок выиграл очко.
+
+        Args:
+            uuid (str): UUID матча.
+            winning_player (int): Номер игрока, выигравшего очко (1 или 2).
+        """
         # надо вызвать сервис который определит старый счет и добавит очко
         # далее проверит на окончание гейма, если гейм окончен то проверит сет и игру если сет окончен
-        print('Сервис change_score_match_service name', number_win)
-        print('Сервис change_score_match_service uuid', uuid)
-
-        # match_dto = self.get_match_for_display(uuid)
-        # print('Сервис change_score_match_service match_dto', match_dto)
-        # print('Сервис change_score_match_service match_dto.score', match_dto.score)
+        print('Сервис update_match_score name', winning_player)
+        print('Сервис update_match_score uuid', uuid)
 
         with SessionLocal() as session:
             match_dao = MatchDAO(session)
-            match_model = match_dao.select_by_uuid(uuid)
-            print('Сервис change_score_match_service match_model', match_model)
-            self.service.change_score_service(match_model, number_win)
+            match_model = match_dao.get_by_uuid(uuid)
+            self.service.process_point(match_model, winning_player)
             session.commit()
             session.refresh(match_model)
 
-        # вызываем метод скор-сервиса изменения счета передавая в него объект счет и имя
-        # self.service.change_score_service(uuid, name)
-        # обратно получаем объект счета с новым счетом
-        # print('Сервис change_score_match_service new_score', new_score)
 
-    # def get_match_score_for_display(self, uuid: str) -> MatchScoreDTO:
-    #     with (SessionLocal() as session):
-    #         player_dao = PlayerDAO(session)
-    #         match_dao = MatchDAO(session)
-    #         match = match_dao.select_by_uuid(uuid)
-    #
-    #         if not match:
-    #             raise ValueError("Матч не найден!")
-    #
-    #         # player_one = player_dao.select_by_id(match.player_one_id)
-    #         # player_two = player_dao.select_by_id(match.player_two_id)
-    #         json_score_from_db = match.score
-    #         score_obj = MatchScore.model_validate_json(json_score_from_db)
-    #
-    #         match_score_dto = MatchScoreDTO(
-    #             set1=score_obj.sets[0].player1_games,
-    #             set2=score_obj.sets[0].player2_games,
-    #             game1=0,
-    #             game2=0,
-    #             point1=0,
-    #             point2=0,
-    #         )
-    #         print('match_score_dto', match_score_dto)
-    #         return match_score_dto
-
-    # def create_match(self, match_data: MatchCreateDTO) -> MatchDTO:
-    #     """
-    #     Создает новую валюту в системе.
-    #     Проверяет, не существует ли уже валюта с таким кодом, перед добавлением.
-    #     Args:
-    #         currency_data (CurrencyCreateDTO): DTO с данными для создания новой валюты.
-    #     Returns:
-    #         CurrencyDTO: DTO, представляющий созданную валюту.
-    #     Raises:
-    #         CurrencyAlreadyExists: Если валюта с таким кодом уже существует.
-    #     """
-    #     code_upper = match_data.code.upper()
-    #     if self.match_dao.get_by_code(code_upper):
-    #         logger.warning(f"Попытка создать дубликат валюты с кодом {currency_data.code}")
-    #         raise CurrencyAlreadyExists(f"Валюта с кодом '{code_upper}' уже существует")
-    #     object_model = MatchCreateModel(name=currency_data.name,
-    #                                        code=currency_data.code,
-    #                                        sign=currency_data.sign)
-    #     print('object_model', object_model)
-    #     new_id = self.currency_dao.create(object_model)
-    #
-    #     logger.info(f"В БД добавлена новая валюта {currency_data.code}, id={new_id}")
-    #
-    #     return CurrencyDTO(
-    #         id=new_id,
-    #         code=code_upper,
-    #         name=currency_data.name,
-    #         sign=currency_data.sign
-    #     )
-
-    # def get_all_currencies(self) -> List[CurrencyDTO]:
-    #     """
-    #     Возвращает список всех валют из базы данных.
-    #     Returns:
-    #         List[CurrencyDTO]: Список объектов DTO валют.
-    #     """
-    #     all_models = self.currency_dao.get_all()
-    #
-    #     if all_models is None:
-    #         logger.warning(f"В БД нет валют")
-    #         raise CurrencyNotFound(f"В БД нет валют")
-    #
-    #     all_dtos = [CurrencyDTO.model_validate(model) for model in all_models]
-    #
-    #     logger.debug(f"Сервис получил {len(all_models)} моделей валют из DAO, преобразовал их в DTO и передал в контроллер")
-    #     return all_dtos
-    #
-    # def get_currency_by_code(self, code: str) -> CurrencyDTO:
-    #     """
-    #     Находит одну валюту по ее уникальному коду.
-    #     Args:
-    #         code (str): Трехбуквенный код валюты (например, 'USD').
-    #     Returns:
-    #         CurrencyDTO: Объект DTO найденной валюты.
-    #     Raises:
-    #         CurrencyNotFound: Если валюта с указанным кодом не найдена в БД.
-    #     """
-    #     one_model = self.currency_dao.get_by_code(code)
-    #
-    #     if one_model is None:
-    #         logger.warning(f"Валюта с кодом {code} не найдена в БД")
-    #         raise CurrencyNotFound(f"Валюта с кодом {code} не найдена в БД")
-    #     logger.debug(f"Сервис получил модель валюты {code} из DAO")
-    #     one_dto = CurrencyDTO.model_validate(one_model)
-    #
-    #     return one_dto
 
