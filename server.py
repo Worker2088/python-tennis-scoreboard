@@ -18,6 +18,9 @@ Base.metadata.create_all(bind=engine)
 
 PORT = 8080
 
+class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    pass
+
 class TennisHandler(http.server.SimpleHTTPRequestHandler):
     """
     Обработчик HTTP-запросов для теннисного табло
@@ -86,7 +89,8 @@ def run_server() -> None:
     # разрешаем повторное использование адреса (при частых перезапусках)
     socketserver.TCPServer.allow_reuse_address = True
     try:
-        with socketserver.TCPServer(("", PORT), TennisHandler) as httpd:
+        # with socketserver.TCPServer(("0.0.0.0", PORT), TennisHandler) as httpd:
+        with ThreadingTCPServer(("0.0.0.0", PORT), TennisHandler) as httpd:
             print(f"Сервер на http://localhost:{PORT}")
             print("Для остановки нажмите Ctrl+C")
             httpd.serve_forever()
