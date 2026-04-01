@@ -20,11 +20,11 @@ PORT = 8080
 
 class TennisHandler(http.server.SimpleHTTPRequestHandler):
     """
-    Обработчик HTTP-запросов для теннисного табло.
+    Обработчик HTTP-запросов для теннисного табло
     """
     def do_GET(self) -> None:
         """
-        Обрабатывает входящие GET-запросы.
+        Обрабатывает входящие GET-запросы
         """
         # 1. Если просят главную страницу
         # print('self.path', self.path)
