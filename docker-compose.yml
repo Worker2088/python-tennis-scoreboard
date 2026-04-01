@@ -7,9 +7,11 @@ services:
     environment:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "3307:3306"
+#    ports:
+#      - "3307:3306"
 # Пробрасываем внутренний 3306 на внешний 3307, чтобы можно было смотреть БД в контейнере через MySQL Workbench
+# !!! только для учкбных целей (или при написании кода)
+# в проде, на удаленном сервере не должно быть открытых для вне портов к БД
     volumes:
       - db_data:/var/lib/mysql
     networks:
