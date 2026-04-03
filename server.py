@@ -9,7 +9,7 @@ import sys
 import time
 from urllib.parse import urlparse, parse_qs
 
-from sqlalchemy.exc import OperationalError
+# from sqlalchemy.exc import OperationalError
 
 from src.controllers.match_controller import MatchController
 from src.database.connection import engine
@@ -82,20 +82,6 @@ class TennisHandler(http.server.SimpleHTTPRequestHandler):
             controller = MatchController(self)
             controller.change_score(normalized_query.get('uuid'))
 
-def wait_for_db(engine, retries=5, delay=5):
-    """Ждем, пока база данных станет доступной."""
-    print("Проверка соединения с базой данных...")
-    for i in range(retries):
-        try:
-            # Пытаемся просто подключиться
-            connection = engine.connect()
-            connection.close()
-            print("Соединение с БД установлено!")
-            return True
-        except OperationalError:
-            print(f"БД пока не готова... (попытка {i+1}/{retries}), ждем {delay} сек.")
-            time.sleep(delay)
-    return False
 
 def run_server() -> None:
     """
@@ -104,14 +90,9 @@ def run_server() -> None:
     # разрешаем повторное использование адреса (при частых перезапусках)
     socketserver.TCPServer.allow_reuse_address = True
 
-    # 1. Сначала ждем БД
-    if not wait_for_db(engine):
-        print("Критическая ошибка: БД недоступна. Выход.")
-        sys.exit(1)
-
-    # 2. Создаем таблицы (только если БД готова)
+    # Создаем таблицы
     Base.metadata.create_all(bind=engine)
-    
+
     try:
         with socketserver.TCPServer(("0.0.0.0", PORT), TennisHandler) as httpd:
             print(f"Сервер на http://localhost:{PORT}")
